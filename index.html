@@ -1,44 +1,119 @@
+
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Beautifier</title>
+  <title>Beautifier + Jinja Generator</title>
   <style>
     body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; }
     textarea { width: 100%; height: 150px; margin-bottom: 20px; }
-    button { padding: 10px 15px; cursor: pointer; }
+    input { width: 100%; margin-bottom: 10px; padding: 5px; }
+    button { padding: 10px 15px; cursor: pointer; margin-bottom: 20px; }
+    .pair { display: flex; gap: 10px; margin-bottom: 10px; }
+    .pair input { flex: 1; }
   </style>
 </head>
 <body>
 
-<h2>Beautifier</h2>
+<h2>Beautifier + Bloomreach Jinja Generator</h2>
 
-<p>Paste your one-line code below:</p>
-
+<!-- Beautifier Section -->
+<h3>Beautifier</h3>
+<p>Paste your one-line Jinja code below:</p>
 <textarea id="input"></textarea>
-
 <button onclick="beautify()">Beautify</button>
 
-<h3>Output:</h3>
+<h3>Beautified Output:</h3>
 <textarea id="output"></textarea>
 
+<hr>
+
+<!-- Jinja Generator Section -->
+<h3>Jinja Generator</h3>
+<p>Enter PIM Tester Message Numbers and their corresponding Subject Lines:</p>
+
+<div id="pairs-container">
+  <div class="pair">
+    <input type="text" placeholder="pim_tester_msg_num (e.g., 110)">
+    <input type="text" placeholder="Subject line / Pre-header">
+    <button onclick="removePair(this)">Remove</button>
+  </div>
+</div>
+
+<button onclick="addPair()">Add More</button>
+
+<p>Default Subject Line (used if no match):</p>
+<input type="text" id="default-subject" placeholder="Support for your patients">
+
+<button onclick="generateJinja()">Generate Jinja</button>
+
+<h3>Generated Jinja Output:</h3>
+<textarea id="jinja-output"></textarea>
+
 <script>
+// -------------------- Beautifier Function --------------------
 function beautify() {
   let code = document.getElementById("input").value;
 
-  // add newlines around tags
+  // Add newlines around Jinja tags
   code = code
     .replace(/{%/g, "\n{%")
     .replace(/%}/g, "%}\n")
-    .replace(/\n+/g, "\n") // remove extra lines
+    .replace(/\n+/g, "\n") // remove extra blank lines
     .trim();
 
-  // indent text lines under conditionals
+  // Indent text lines under conditionals
   let lines = code.split("\n").map(line => {
     if (line.startsWith("{%")) return line;
     return "  " + line.trim();
   });
 
   document.getElementById("output").value = lines.join("\n");
+}
+
+// -------------------- Jinja Generator Functions --------------------
+function addPair() {
+  const container = document.getElementById('pairs-container');
+  const div = document.createElement('div');
+  div.className = 'pair';
+  div.innerHTML = `
+    <input type="text" placeholder="pim_tester_msg_num">
+    <input type="text" placeholder="Subject line / Pre-header">
+    <button onclick="removePair(this)">Remove</button>
+  `;
+  container.appendChild(div);
+}
+
+function removePair(button) {
+  button.parentElement.remove();
+}
+
+function generateJinja() {
+  const pairs = Array.from(document.querySelectorAll('#pairs-container .pair'));
+  const defaultSubject = document.getElementById('default-subject').value.trim() || "Support for your patients";
+
+  if (pairs.length === 0) {
+    alert("Please add at least one PIM message number.");
+    return;
+  }
+
+  let jinja = '';
+  pairs.forEach((pair, index) => {
+    const msgNum = pair.children[0].value.trim();
+    const subject = pair.children[1].value.trim();
+    if (!msgNum || !subject) return;
+
+    if (index === 0) {
+      jinja += `{% if customer.pim_tester_msg_num == "${msgNum}" %}\n  ${subject}\n`;
+    } else {
+      jinja += `{% elif customer.pim_tester_msg_num == "${msgNum}" %}\n  ${subject}\n`;
+    }
+  });
+
+  jinja += `{% else %}\n  ${defaultSubject}\n{% endif %}`;
+
+  // Beautify spacing
+  jinja = jinja.replace(/\n+/g, "\n").trim();
+  document.getElementById('jinja-output').value = jinja;
 }
 </script>
 
