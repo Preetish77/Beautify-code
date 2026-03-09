@@ -1,119 +1,443 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Beautifier + Jinja Generator</title>
-  <style>
-    body { font-family: Arial, sans-serif; padding: 20px; max-width: 800px; }
-    textarea { width: 100%; height: 150px; margin-bottom: 20px; }
-    input { width: 100%; margin-bottom: 10px; padding: 5px; }
-    button { padding: 10px 15px; cursor: pointer; margin-bottom: 20px; }
-    .pair { display: flex; gap: 10px; margin-bottom: 10px; }
-    .pair input { flex: 1; }
-  </style>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Machine Tracker</title>
+
+<style>
+
+body{
+font-family:Arial;
+margin:0;
+background:#f4f6f9;
+}
+
+header{
+background:#111;
+color:white;
+padding:14px;
+text-align:center;
+font-size:18px;
+}
+
+.tabs{
+display:flex;
+}
+
+.tabs button{
+flex:1;
+padding:12px;
+border:none;
+background:#ddd;
+font-size:15px;
+}
+
+.tabs button.active{
+background:#111;
+color:white;
+}
+
+.container{
+padding:12px;
+}
+
+.card{
+background:white;
+padding:12px;
+border-radius:8px;
+margin-bottom:12px;
+box-shadow:0 2px 5px rgba(0,0,0,0.1);
+}
+
+.summary{
+display:flex;
+gap:8px;
+margin-bottom:10px;
+}
+
+.summary div{
+flex:1;
+background:white;
+padding:8px;
+border-radius:6px;
+text-align:center;
+box-shadow:0 2px 4px rgba(0,0,0,0.1);
+}
+
+.summary span{
+font-size:12px;
+color:#777;
+display:block;
+}
+
+.summary b{
+font-size:17px;
+}
+
+input{
+width:100%;
+padding:9px;
+margin:6px 0;
+border:1px solid #ccc;
+border-radius:6px;
+}
+
+button{
+width:100%;
+padding:10px;
+background:#111;
+color:white;
+border:none;
+border-radius:6px;
+}
+
+table{
+width:100%;
+border-collapse:collapse;
+font-size:13px;
+}
+
+th{
+text-align:left;
+background:#fafafa;
+padding:8px;
+border-bottom:2px solid #eee;
+}
+
+td{
+padding:8px;
+border-bottom:1px solid #eee;
+}
+
+.actions{
+display:flex;
+gap:5px;
+}
+
+.edit{
+background:#007bff;
+padding:6px 8px;
+border:none;
+color:white;
+border-radius:4px;
+font-size:12px;
+}
+
+.delete{
+background:#dc3545;
+padding:6px 8px;
+border:none;
+color:white;
+border-radius:4px;
+font-size:12px;
+}
+
+.filterRow{
+display:flex;
+gap:6px;
+}
+
+.filterRow input{
+flex:1;
+}
+
+.filterRow button{
+width:auto;
+padding:9px 12px;
+}
+
+</style>
 </head>
+
 <body>
 
-<h2>Beautifier + Bloomreach Jinja Generator</h2>
+<header>Machine Tracker</header>
 
-<!-- Beautifier Section -->
-<h3>Beautifier</h3>
-<p>Paste your one-line Jinja code below:</p>
-<textarea id="input"></textarea>
-<button onclick="beautify()">Beautify</button>
-
-<h3>Beautified Output:</h3>
-<textarea id="output"></textarea>
-
-<hr>
-
-<!-- Jinja Generator Section -->
-<h3>Jinja Generator</h3>
-<p>Enter PIM Tester Message Numbers and their corresponding Subject Lines:</p>
-
-<div id="pairs-container">
-  <div class="pair">
-    <input type="text" placeholder="pim_tester_msg_num (e.g., 110)">
-    <input type="text" placeholder="Subject line / Pre-header">
-    <button onclick="removePair(this)">Remove</button>
-  </div>
+<div class="tabs">
+<button id="kTab" class="active" onclick="switchMachine('kobelco')">Kobelco</button>
+<button id="cTab" onclick="switchMachine('compressor')">Compressor</button>
 </div>
 
-<button onclick="addPair()">Add More</button>
+<div class="container">
 
-<p>Default Subject Line (used if no match):</p>
-<input type="text" id="default-subject" placeholder="Support for your patients">
+<div class="card">
 
-<button onclick="generateJinja()">Generate Jinja</button>
+<div class="filterRow">
+<input type="date" id="fromDate">
+<input type="date" id="toDate">
+<button onclick="applyFilter()">Filter</button>
+</div>
 
-<h3>Generated Jinja Output:</h3>
-<textarea id="jinja-output"></textarea>
+</div>
+
+<div class="summary">
+<div><span id="l1">Hours</span><b id="s1">0</b></div>
+<div><span id="l2">Diesel</span><b id="s2">0</b></div>
+<div><span id="l3">Expense</span><b id="s3">0</b></div>
+</div>
+
+<div id="form"></div>
+
+<div class="card">
+
+<table>
+
+<thead>
+<tr id="thead"></tr>
+</thead>
+
+<tbody id="tbody"></tbody>
+
+</table>
+
+</div>
+
+</div>
 
 <script>
-// -------------------- Beautifier Function --------------------
-function beautify() {
-  let code = document.getElementById("input").value;
 
-  // Add newlines around Jinja tags
-  code = code
-    .replace(/{%/g, "\n{%")
-    .replace(/%}/g, "%}\n")
-    .replace(/\n+/g, "\n") // remove extra blank lines
-    .trim();
+const API="https://script.google.com/macros/s/AKfycbzipgS_jFRAlTHXNPhQxI8_keZy4y7QzeBgTzrRoPU43FimHoFsTLs1HW7t9BY0bzgE/exec"
 
-  // Indent text lines under conditionals
-  let lines = code.split("\n").map(line => {
-    if (line.startsWith("{%")) return line;
-    return "  " + line.trim();
-  });
+let machine="kobelco"
+let data=[]
+let editRow=null
+let fromDate=null
+let toDate=null
 
-  document.getElementById("output").value = lines.join("\n");
+function formatDate(d){
+
+if(!d) return ""
+
+let date=new Date(d)
+
+let dayNames=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
+
+let day=dayNames[date.getDay()]
+
+let formatted=date.toISOString().split("T")[0]
+
+return formatted+" ("+day+")"
+
 }
 
-// -------------------- Jinja Generator Functions --------------------
-function addPair() {
-  const container = document.getElementById('pairs-container');
-  const div = document.createElement('div');
-  div.className = 'pair';
-  div.innerHTML = `
-    <input type="text" placeholder="pim_tester_msg_num">
-    <input type="text" placeholder="Subject line / Pre-header">
-    <button onclick="removePair(this)">Remove</button>
-  `;
-  container.appendChild(div);
+function switchMachine(m){
+
+machine=m
+
+document.getElementById("kTab").classList.remove("active")
+document.getElementById("cTab").classList.remove("active")
+
+if(m=="kobelco")
+document.getElementById("kTab").classList.add("active")
+else
+document.getElementById("cTab").classList.add("active")
+
+renderForm()
+renderTable()
+
 }
 
-function removePair(button) {
-  button.parentElement.remove();
+function applyFilter(){
+
+fromDate=document.getElementById("fromDate").value
+toDate=document.getElementById("toDate").value
+
+renderTable()
+
 }
 
-function generateJinja() {
-  const pairs = Array.from(document.querySelectorAll('#pairs-container .pair'));
-  const defaultSubject = document.getElementById('default-subject').value.trim() || "Support for your patients";
+function renderForm(){
 
-  if (pairs.length === 0) {
-    alert("Please add at least one PIM message number.");
-    return;
-  }
+let html=""
 
-  let jinja = '';
-  pairs.forEach((pair, index) => {
-    const msgNum = pair.children[0].value.trim();
-    const subject = pair.children[1].value.trim();
-    if (!msgNum || !subject) return;
+if(machine=="kobelco"){
 
-    if (index === 0) {
-      jinja += `{% if customer.pim_tester_msg_num == "${msgNum}" %}\n  ${subject}\n`;
-    } else {
-      jinja += `{% elif customer.pim_tester_msg_num == "${msgNum}" %}\n  ${subject}\n`;
-    }
-  });
+document.getElementById("l1").innerText="Hours"
+document.getElementById("l2").innerText="Diesel"
+document.getElementById("l3").innerText="Expense"
 
-  jinja += `{% else %}\n  ${defaultSubject}\n{% endif %}`;
+html=`
+<div class="card">
 
-  // Beautify spacing
-  jinja = jinja.replace(/\n+/g, "\n").trim();
-  document.getElementById('jinja-output').value = jinja;
+<input type="date" id="date">
+<input type="number" id="hours" placeholder="Hours">
+<input type="number" id="diesel" placeholder="Diesel">
+<input type="number" id="expense" placeholder="Expense">
+<input type="text" id="notes" placeholder="Expense note">
+
+<button onclick="save()">Add Entry</button>
+
+</div>
+`
+
+}else{
+
+document.getElementById("l1").innerText="Holes"
+document.getElementById("l2").innerText="Diesel"
+document.getElementById("l3").innerText="Expense"
+
+html=`
+<div class="card">
+
+<input type="date" id="date">
+<input type="number" id="holes" placeholder="Holes">
+<input type="number" id="diesel" placeholder="Diesel">
+<input type="number" id="expense" placeholder="Expense">
+<input type="text" id="notes" placeholder="Expense note">
+
+<button onclick="save()">Add Entry</button>
+
+</div>
+`
+
 }
+
+document.getElementById("form").innerHTML=html
+
+}
+
+function save(){
+
+let payload={
+machine:machine,
+date:document.getElementById("date").value,
+diesel:document.getElementById("diesel").value,
+expense:document.getElementById("expense").value,
+notes:document.getElementById("notes").value
+}
+
+if(machine=="kobelco")
+payload.hours=document.getElementById("hours").value
+else
+payload.holes=document.getElementById("holes").value
+
+if(editRow) payload.row=editRow
+
+fetch(API,{
+method:"POST",
+body:JSON.stringify(payload)
+})
+.then(r=>r.text())
+.then(()=>{
+editRow=null
+setTimeout(loadData,600)
+})
+
+}
+
+function loadData(){
+
+fetch(API)
+.then(r=>r.json())
+.then(json=>{
+data=json
+renderTable()
+})
+
+}
+
+function renderTable(){
+
+let rows=data.filter(x=>{
+
+if(x.machine!=machine) return false
+
+let d=new Date(x.date)
+
+if(fromDate && d<new Date(fromDate)) return false
+if(toDate && d>new Date(toDate)) return false
+
+return true
+
+})
+
+let html=""
+
+if(machine=="kobelco")
+document.getElementById("thead").innerHTML="<th>Date</th><th>Hours</th><th>Diesel</th><th>Expense</th><th>Note</th><th></th>"
+else
+document.getElementById("thead").innerHTML="<th>Date</th><th>Holes</th><th>Diesel</th><th>Expense</th><th>Note</th><th></th>"
+
+let t1=0,t2=0,t3=0
+
+rows.forEach(r=>{
+
+let date=formatDate(r.date)
+
+if(machine=="kobelco")
+t1+=Number(r.hours||0)
+else
+t1+=Number(r.holes||0)
+
+t2+=Number(r.diesel||0)
+t3+=Number(r.expense||0)
+
+html+=`<tr>
+
+<td>${date}</td>
+<td>${machine=="kobelco"?r.hours||"":r.holes||""}</td>
+<td>${r.diesel||""}</td>
+<td>${r.expense||""}</td>
+<td>${r.notes||""}</td>
+
+<td>
+<div class="actions">
+<button class="edit" onclick="edit(${r.row})">Edit</button>
+<button class="delete" onclick="removeRow(${r.row})">Delete</button>
+</div>
+</td>
+
+</tr>`
+
+})
+
+document.getElementById("tbody").innerHTML=html
+
+document.getElementById("s1").innerText=t1
+document.getElementById("s2").innerText=t2
+document.getElementById("s3").innerText=t3
+
+}
+
+function edit(row){
+
+let r=data.find(x=>x.row==row)
+
+editRow=row
+
+document.getElementById("date").value=new Date(r.date).toISOString().split("T")[0]
+document.getElementById("diesel").value=r.diesel
+document.getElementById("expense").value=r.expense
+document.getElementById("notes").value=r.notes||""
+
+if(machine=="kobelco")
+document.getElementById("hours").value=r.hours
+else
+document.getElementById("holes").value=r.holes
+
+}
+
+function removeRow(row){
+
+if(!confirm("Delete entry?")) return
+
+fetch(API,{
+method:"POST",
+body:JSON.stringify({
+action:"delete",
+row:row
+})
+})
+.then(r=>r.text())
+.then(()=>{
+setTimeout(loadData,400)
+})
+
+}
+
+renderForm()
+loadData()
+
 </script>
 
 </body>
